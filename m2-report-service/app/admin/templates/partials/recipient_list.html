@@ -1,0 +1,44 @@
+{% set site_id = site.id %}
+{% if error %}
+<div class="form-error">{{ error }}</div>
+{% endif %}
+
+<form hx-post="{{ url_for('admin.add_recipient', site_id=site.id) }}"
+      hx-target="#recipient-list" hx-swap="innerHTML"
+      class="inline-form" style="margin-bottom: 16px;">
+  <div class="field">
+    <label for="rec-name">Nombre</label>
+    <input type="text" name="name" id="rec-name" placeholder="Nombre del destinatario" required>
+  </div>
+  <div class="field">
+    <label for="rec-email">Correo electrónico</label>
+    <input type="email" name="email" id="rec-email" placeholder="correo@ejemplo.org" required>
+  </div>
+  <button type="submit" class="btn btn-primary">Agregar</button>
+</form>
+
+<table class="data">
+  <thead>
+    <tr>
+      <th>Nombre</th>
+      <th>Correo</th>
+      <th>Estado</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in recipients %}
+    {% include "partials/recipient_row.html" with context %}
+    {% else %}
+    <tr>
+      <td colspan="4">
+        <div class="empty-state">
+          <div class="icon">✉</div>
+          <div class="primary">Sin destinatarios</div>
+          <div class="secondary">El PDF se generará pero no se enviará por correo hasta agregar al menos uno.</div>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

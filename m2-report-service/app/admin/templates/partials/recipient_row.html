@@ -1,0 +1,21 @@
+<tr id="recipient-{{ r.id }}">
+  <td>{{ r.name }}</td>
+  <td>{{ r.email }}</td>
+  <td>
+    {% if r.active %}<span class="badge badge-success">Activo</span>
+    {% else %}<span class="badge badge-neutral">Inactivo</span>{% endif %}
+  </td>
+  <td class="actions">
+    <button class="btn-icon" title="{{ 'Desactivar' if r.active else 'Activar' }}"
+            hx-post="{{ url_for('admin.toggle_recipient', site_id=site_id, recipient_id=r.id) }}"
+            hx-target="#recipient-{{ r.id }}" hx-swap="outerHTML">
+      {{ '⏸' if r.active else '▶' }}
+    </button>
+    <button class="btn-icon danger" title="Eliminar"
+            hx-delete="{{ url_for('admin.delete_recipient', site_id=site_id, recipient_id=r.id) }}"
+            hx-confirm="¿Eliminar a {{ r.name }} de la lista de este sitio?"
+            hx-target="#recipient-{{ r.id }}" hx-swap="outerHTML">
+      ✕
+    </button>
+  </td>
+</tr>

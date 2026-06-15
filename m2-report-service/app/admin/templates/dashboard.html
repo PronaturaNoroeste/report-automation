@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Panel general{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Panel general</h1>
+    <div class="subtitle">Estado del último reporte por sitio de radar</div>
+  </div>
+  <div class="actions">
+    <form method="post" action="{{ url_for('admin.run_all') }}" class="inline-form">
+      <div class="field" style="min-width: 180px;">
+        <label for="period-all">Periodo</label>
+        <select name="period" id="period-all">
+          {% for opt in month_options %}
+          <option value="{{ opt.value }}">{{ opt.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary" {{ 'disabled' if run_busy }}>
+        Ejecutar todos los sitios
+      </button>
+    </form>
+  </div>
+</div>
+
+<div id="site-cards"
+     {% if run_busy %}
+     hx-get="{{ url_for('admin.run_status') }}"
+     hx-trigger="every 3s"
+     hx-swap="innerHTML"
+     {% endif %}>
+  {% include "partials/site_cards.html" %}
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Historial{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Historial de reportes</h1>
+    <div class="subtitle">Todos los reportes generados, en todos los sitios</div>
+  </div>
+</div>
+
+<form class="filter-bar" method="get" action="{{ url_for('admin.history') }}">
+  <select name="site_id" onchange="this.form.submit()">
+    <option value="">Todos los sitios</option>
+    {% for s in sites %}
+    <option value="{{ s.id }}" {{ 'selected' if selected_site_id == s.id }}>{{ s.name }}</option>
+    {% endfor %}
+  </select>
+  {% if selected_site_id %}
+  <a class="btn-text" href="{{ url_for('admin.history') }}">Limpiar filtros</a>
+  {% endif %}
+</form>
+
+<div class="table-container">
+  <table class="data">
+    <thead>
+      <tr>
+        <th>Sitio</th>
+        <th>Periodo</th>
+        <th>Estado</th>
+        <th>Registros</th>
+        <th>Alertas</th>
+        <th>Origen</th>
+        <th>Fecha de ejecución</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for run in runs %}
+      <tr>
+        <td><a class="link" href="{{ url_for('admin.site_detail', site_id=run.site_id) }}">{{ run.site.name }}</a></td>
+        <td>{{ month_es[run.month] }} {{ run.year }}</td>
+        <td>
+          {% if run.status == 'success' %}<span class="badge badge-success">Completo</span>
+          {% elif run.status == 'failed' %}<span class="badge badge-danger">Error</span>
+          {% else %}<span class="badge badge-warning">Pendiente</span>{% endif %}
+        </td>
+        <td>{{ "{:,}".format(run.total_tracks) if run.total_tracks is not none else '—' }}</td>
+        <td>{{ "{:,}".format(run.alert_tracks) if run.alert_tracks is not none else '—' }}</td>
+        <td class="muted">{{ 'Programado' if run.triggered_by == 'scheduler' else 'Manual' }}</td>
+        <td class="muted">{{ run.created_at.strftime('%d/%m/%Y %H:%M') }} UTC</td>
+        <td class="actions">
+          {% if run.status == 'success' and run.pdf_path %}
+          <a class="btn-icon" href="{{ url_for('admin.download_report', run_id=run.id) }}" title="Descargar PDF">⬇</a>
+          {% elif run.status == 'failed' and run.error_message %}
+          <span class="btn-icon danger" title="{{ run.error_message }}">⚠</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="8">
+          <div class="empty-state">
+            <div class="icon">◌</div>
+            <div class="primary">No hay reportes registrados</div>
+            <div class="secondary">Los reportes aparecerán aquí después de la primera ejecución.</div>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

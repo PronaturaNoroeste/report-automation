@@ -1,0 +1,49 @@
+<div class="card-grid">
+  {% for c in cards %}
+  <div class="card site-card {{ 'inactive' if not c.site.active }}">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span class="site-name"><a href="{{ url_for('admin.site_detail', site_id=c.site.id) }}">{{ c.site.name }}</a></span>
+      {% if c.live and c.live.status == 'running' %}
+        <span class="badge badge-info">En curso</span>
+      {% elif c.live and c.live.status == 'queued' %}
+        <span class="badge badge-neutral">En cola</span>
+      {% elif c.last_run and c.last_run.status == 'success' %}
+        <span class="badge badge-success">Completo</span>
+      {% elif c.last_run and c.last_run.status == 'failed' %}
+        <span class="badge badge-danger">Error</span>
+      {% elif c.last_run and c.last_run.status == 'pending' %}
+        <span class="badge badge-warning">Pendiente</span>
+      {% else %}
+        <span class="badge badge-neutral">Sin reportes</span>
+      {% endif %}
+      {% if not c.site.active %}<span class="badge badge-warning">Inactivo</span>{% endif %}
+    </div>
+
+    <div class="meta">
+      {% if c.live and c.live.status == 'running' %}
+        <div class="live-detail">{{ c.live.detail }}</div>
+      {% endif %}
+      <div>Último reporte:
+        <span class="value">
+          {% if c.last_run %}{{ month_es[c.last_run.month] }} {{ c.last_run.year }}{% else %}—{% endif %}
+        </span>
+      </div>
+      <div>Ejecutado:
+        <span class="value">{{ c.last_run.created_at.strftime('%d/%m/%Y %H:%M') if c.last_run else '—' }} UTC</span>
+      </div>
+      <div>Destinatarios activos: <span class="value">{{ c.recipient_count }}</span></div>
+      {% if c.last_run and c.last_run.status == 'success' %}
+      <div>Registros: <span class="value">{{ "{:,}".format(c.last_run.total_tracks or 0) }}</span>
+        · Alertas: <span class="value">{{ "{:,}".format(c.last_run.alert_tracks or 0) }}</span></div>
+      {% endif %}
+    </div>
+
+    <div class="card-footer">
+      <a class="btn btn-secondary" href="{{ url_for('admin.site_detail', site_id=c.site.id) }}">Ver detalle</a>
+      {% if c.last_run and c.last_run.status == 'success' and c.last_run.pdf_path %}
+      <a class="btn btn-text" href="{{ url_for('admin.download_report', run_id=c.last_run.id) }}">Descargar PDF</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>

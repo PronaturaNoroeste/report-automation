@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Configuración{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Configuración</h1>
+    <div class="subtitle">Verificación SMTP y líneas base año-contra-año</div>
+  </div>
+</div>
+
+<div class="section-stack">
+
+  <div class="card">
+    <h2>Correo saliente (SMTP)</h2>
+    <p style="font-size: 13px; color: var(--color-stone); margin-bottom: 16px;">
+      Los valores se configuran en el archivo <code>.env</code> del servidor.
+      Servidor: <strong>{{ smtp.smtp_host }}:{{ smtp.smtp_port }}</strong> ·
+      Remitente: <strong>{{ smtp.smtp_user }}</strong>
+    </p>
+    <form method="post">
+      <input type="hidden" name="action" value="test_smtp">
+      <button type="submit" class="btn btn-secondary">Probar conexión SMTP</button>
+    </form>
+    {% if smtp_result %}
+    <div class="smtp-result {{ 'ok' if smtp_result.ok else 'fail' }}">{{ smtp_result.message }}</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Agregar / editar línea base (año anterior)</h2>
+    <p style="font-size: 13px; color: var(--color-stone); margin-bottom: 16px;">
+      Las líneas base se guardan automáticamente con cada reporte exitoso. Use este formulario solo para
+      cargar datos históricos previos al despliegue del sistema.
+    </p>
+    <form method="post" class="form-grid">
+      <input type="hidden" name="action" value="save_baseline">
+      <div class="field">
+        <label for="bl-site">Sitio</label>
+        <select name="site_id" id="bl-site" required>
+          {% for s in sites %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="bl-period">Periodo (año-mes)</label>
+        <input type="month" name="period" id="bl-period" required>
+      </div>
+      <div class="field">
+        <label for="bl-total">Registros totales</label>
+        <input type="number" name="total_tracks" id="bl-total" min="0" required>
+      </div>
+      <div class="field">
+        <label for="bl-alerts">Alertas</label>
+        <input type="number" name="alert_tracks" id="bl-alerts" min="0" required>
+      </div>
+      <div>
+        <button type="submit" class="btn btn-primary">Guardar línea base</button>
+      </div>
+    </form>
+  </div>
+
+  {% for s in sites %}
+  {% if baselines[s.id] %}
+  <div class="card" style="padding: 0;">
+    <h2 style="padding: 24px 24px 0 24px;">Líneas base — {{ s.name }}</h2>
+    <div style="margin-top: 16px;">
+      <table class="data">
+        <thead>
+          <tr><th>Periodo</th><th>Registros totales</th><th>Alertas</th><th>Actualizado</th></tr>
+        </thead>
+        <tbody>
+          {% for b in baselines[s.id] %}
+          <tr>
+            <td>{{ month_es[b.month] }} {{ b.year }}</td>
+            <td>{{ "{:,}".format(b.total_tracks) }}</td>
+            <td>{{ "{:,}".format(b.alert_tracks) }}</td>
+            <td class="muted">{{ b.updated_at.strftime('%d/%m/%Y %H:%M') }} UTC</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+
+</div>
+{% endblock %}

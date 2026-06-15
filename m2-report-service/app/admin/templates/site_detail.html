@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{{ site.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ site.name }}</h1>
+    <div class="subtitle">
+      Radar {{ site.id }} · {{ site.timezone }} ·
+      {% if site.active %}Incluido en ejecuciones programadas{% else %}Excluido de ejecuciones programadas{% endif %}
+    </div>
+  </div>
+  <div class="actions">
+    <form method="post" action="{{ url_for('admin.toggle_site', site_id=site.id) }}">
+      <button type="submit" class="btn btn-secondary">
+        {{ 'Desactivar sitio' if site.active else 'Activar sitio' }}
+      </button>
+    </form>
+    <form method="post" action="{{ url_for('admin.run_site', site_id=site.id) }}" class="inline-form">
+      <div class="field" style="min-width: 170px;">
+        <label for="period-site">Periodo</label>
+        <select name="period" id="period-site">
+          {% for opt in month_options %}
+          <option value="{{ opt.value }}">{{ opt.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary" {{ 'disabled' if run_busy }}>Generar reporte</button>
+    </form>
+  </div>
+</div>
+
+{% if run_busy %}
+<div class="card" hx-get="{{ url_for('admin.run_status') }}" hx-trigger="every 3s" hx-swap="none"
+     hx-on::after-request="if (event.detail.xhr.status === 286) location.reload()">
+  <span class="badge badge-info">Ejecución en curso</span>
+  {% if live %}
+  <span style="margin-left:8px; color: var(--color-stone); font-size: 13px;">{{ live.detail }}</span>
+  {% endif %}
+  <span style="margin-left:8px; color: var(--color-stone); font-size: 12px;">La página se actualizará al terminar.</span>
+</div>
+{% endif %}
+
+<div class="section-stack" style="margin-top: 24px;">
+
+  <div class="card">
+    <h2>Destinatarios del reporte</h2>
+    <div id="recipient-list">
+      {% include "partials/recipient_list.html" %}
+    </div>
+  </div>
+
+  <div class="card" style="padding: 0;">
+    <h2 style="padding: 24px 24px 0 24px;">Historial de reportes</h2>
+    <div style="margin-top: 16px;">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>Periodo</th>
+            <th>Estado</th>
+            <th>Registros</th>
+            <th>Alertas</th>
+            <th>Origen</th>
+            <th>Fecha de ejecución</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for run in history %}
+          <tr>
+            <td>{{ month_es[run.month] }} {{ run.year }}</td>
+            <td>
+              {% if run.status == 'success' %}<span class="badge badge-success">Completo</span>
+              {% elif run.status == 'failed' %}<span class="badge badge-danger">Error</span>
+              {% else %}<span class="badge badge-warning">Pendiente</span>{% endif %}
+            </td>
+            <td>{{ "{:,}".format(run.total_tracks) if run.total_tracks is not none else '—' }}</td>
+            <td>{{ "{:,}".format(run.alert_tracks) if run.alert_tracks is not none else '—' }}</td>
+            <td class="muted">{{ 'Programado' if run.triggered_by == 'scheduler' else 'Manual' }}</td>
+            <td class="muted">{{ run.created_at.strftime('%d/%m/%Y %H:%M') }} UTC</td>
+            <td class="actions">
+              {% if run.status == 'success' and run.pdf_path %}
+              <a class="btn-icon" href="{{ url_for('admin.download_report', run_id=run.id) }}" title="Descargar PDF">⬇</a>
+              {% elif run.status == 'failed' and run.error_message %}
+              <span class="btn-icon danger" title="{{ run.error_message }}">⚠</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7">
+              <div class="empty-state">
+                <div class="icon">◌</div>
+                <div class="primary">Aún no hay reportes para este sitio</div>
+                <div class="secondary">Genere el primero con el botón "Generar reporte".</div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

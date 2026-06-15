@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  /* Pronatura Noroeste base design tokens (DESIGN-pronatura.md) */
+  @page {
+    size: letter;
+    margin: 0;
+  }
+  :root {
+    --color-tide: #1b5c5a;
+    --color-amber: #e07c2a;
+    --color-dune: #f5f2ed;
+    --color-salt: #ffffff;
+    --color-mangrove: #0f3634;
+    --color-kelp: #2e7b78;
+    --color-fog: #e8e4df;
+    --color-stone: #6b6760;
+    --color-ink: #1e1c19;
+    --color-danger: #b83c2b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', 'Helvetica Neue', Arial, sans-serif;
+    color: #1e1c19;
+    background: #ffffff;
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+  .header {
+    background: #0f3634;
+    color: #ffffff;
+    padding: 36px 48px 32px 48px;
+  }
+  .header .org {
+    font-size: 9pt;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #e07c2a;
+    margin-bottom: 10px;
+  }
+  .header h1 {
+    font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+    font-weight: 400;
+    font-size: 21pt;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+  .header .period {
+    margin-top: 8px;
+    font-size: 11pt;
+    color: rgba(255, 255, 255, 0.85);
+  }
+  .content { padding: 36px 48px; }
+
+  .eyebrow {
+    font-size: 8.5pt;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #e07c2a;
+    margin-bottom: 10px;
+  }
+
+  /* Stat callouts — numbers set bare on the page, no cards (signature element) */
+  .stats {
+    display: flex;
+    margin: 8px 0 28px 0;
+  }
+  .stat { flex: 1; padding-right: 24px; }
+  .stat .figure {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 30pt;
+    line-height: 1.0;
+    letter-spacing: -0.02em;
+    color: #1b5c5a;
+  }
+  .stat .label {
+    margin-top: 8px;
+    font-size: 8pt;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6b6760;
+  }
+  .stat .yoy { margin-top: 6px; font-size: 8.5pt; font-weight: 500; }
+  .yoy.up   { color: #b83c2b; }   /* more activity → attention */
+  .yoy.down { color: #2e7b78; }
+
+  .section { margin-top: 28px; }
+  .section h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 400;
+    font-size: 15pt;
+    color: #1e1c19;
+    margin-bottom: 12px;
+  }
+  .chart { width: 100%; margin-top: 4px; }
+  .chart img { width: 100%; }
+
+  .detail-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .detail-table td {
+    padding: 8px 0;
+    border-bottom: 1px solid #e8e4df;
+    font-size: 10pt;
+  }
+  .detail-table td.key { color: #6b6760; width: 55%; }
+  .detail-table td.value { font-weight: 500; color: #1e1c19; }
+
+  .photo-section img {
+    width: 100%;
+    max-height: 280px;
+    object-fit: cover; /* full-bleed within container, no radius (design rule) */
+  }
+  .photo-caption { margin-top: 8px; font-size: 8.5pt; color: #6b6760; }
+
+  .note {
+    background: #f5f2ed;
+    border-left: 3px solid #e07c2a;
+    padding: 12px 16px;
+    font-size: 9.5pt;
+    color: #6b6760;
+    margin-top: 20px;
+  }
+
+  .footer {
+    margin-top: 36px;
+    padding: 20px 48px;
+    background: #f5f2ed;
+    border-top: 1px solid #e8e4df;
+    font-size: 8.5pt;
+    color: #6b6760;
+  }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="org">Pronatura Noroeste · Monitor Marino M2</div>
+    <h1>REPORTE DE ACTIVIDAD DEL M2 EN {{ site.name.upper() }}</h1>
+    <div class="period">{{ kpis.month_name }} {{ kpis.year }}</div>
+  </div>
+
+  <div class="content">
+
+    <div class="eyebrow">Resumen del mes</div>
+    <div class="stats">
+      <div class="stat">
+        <div class="figure">{{ "{:,}".format(kpis.total_tracks) }}</div>
+        <div class="label">Registros totales</div>
+        {% if kpis.yoy_total_pct is not none %}
+        <div class="yoy {{ 'up' if kpis.yoy_total_pct >= 0 else 'down' }}">
+          {{ 'Aumento' if kpis.yoy_total_pct >= 0 else 'Disminución' }} de
+          {{ "%.1f"|format(kpis.yoy_total_pct|abs) }}% vs. {{ kpis.year - 1 }}
+        </div>
+        {% endif %}
+      </div>
+      <div class="stat">
+        <div class="figure">{{ "{:,}".format(kpis.alert_tracks) }}</div>
+        <div class="label">Alertas registradas</div>
+        {% if kpis.yoy_alert_pct is not none %}
+        <div class="yoy {{ 'up' if kpis.yoy_alert_pct >= 0 else 'down' }}">
+          {{ 'Aumento' if kpis.yoy_alert_pct >= 0 else 'Disminución' }} de
+          {{ "%.1f"|format(kpis.yoy_alert_pct|abs) }}% vs. {{ kpis.year - 1 }}
+        </div>
+        {% endif %}
+      </div>
+      <div class="stat">
+        <div class="figure">{{ "%02d:00"|format(kpis.peak_alert_hour) if kpis.peak_alert_hour is not none else "—" }}</div>
+        <div class="label">Hora pico de alertas</div>
+      </div>
+      <div class="stat">
+        <div class="figure" style="font-size: 20pt; padding-top: 8px;">{{ kpis.busiest_weekday or "—" }}</div>
+        <div class="label">Día con más alertas</div>
+      </div>
+    </div>
+
+    {% if kpis.total_tracks == 0 %}
+    <div class="note">
+      No se registraron embarcaciones durante {{ kpis.month_name }} {{ kpis.year }}.
+      {% if kpis.radar_uptime_pct is not none and kpis.radar_uptime_pct < 90 %}
+      El radar estuvo operativo solo el {{ "%.1f"|format(kpis.radar_uptime_pct) }}% de las
+      horas del mes — los datos reflejan un periodo de inactividad del equipo, no
+      necesariamente ausencia de tráfico. Se recomienda verificar el estado del equipo en sitio.
+      {% else %}
+      Esto puede indicar un periodo de inactividad del radar — se recomienda verificar
+      el estado del equipo en sitio.
+      {% endif %}
+    </div>
+    {% elif kpis.radar_uptime_pct is not none and kpis.radar_uptime_pct < 90 %}
+    <div class="note">
+      El radar estuvo operativo el {{ "%.1f"|format(kpis.radar_uptime_pct) }}% de las horas
+      del mes. Las cifras de este reporte pueden subestimar la actividad real durante los
+      periodos sin cobertura.
+    </div>
+    {% endif %}
+
+    <div class="section">
+      <div class="eyebrow">Actividad diaria</div>
+      <h2>Registros y alertas por día</h2>
+      {% if chart_b64 %}
+      <div class="chart"><img src="data:image/png;base64,{{ chart_b64 }}" alt="Actividad diaria"></div>
+      {% endif %}
+    </div>
+
+    <div class="section">
+      <div class="eyebrow">Detalle</div>
+      <h2>Indicadores del periodo</h2>
+      <table class="detail-table">
+        <tr>
+          <td class="key">Sitio de monitoreo</td>
+          <td class="value">{{ site.name }} (radar {{ site.id }})</td>
+        </tr>
+        <tr>
+          <td class="key">Periodo</td>
+          <td class="value">{{ kpis.month_name }} {{ kpis.year }} ({{ kpis.days_in_month }} días)</td>
+        </tr>
+        <tr>
+          <td class="key">Embarcaciones detectadas</td>
+          <td class="value">{{ "{:,}".format(kpis.total_tracks) }}</td>
+        </tr>
+        <tr>
+          <td class="key">Trayectos con alerta</td>
+          <td class="value">{{ "{:,}".format(kpis.alert_tracks) }}</td>
+        </tr>
+        <tr>
+          <td class="key">Porcentaje de trayectos con alerta</td>
+          <td class="value">
+            {% if kpis.total_tracks > 0 %}{{ "%.1f"|format(kpis.alert_tracks / kpis.total_tracks * 100) }}%{% else %}—{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td class="key">Hora con mayor número de alertas (hora local)</td>
+          <td class="value">{{ "%02d:00"|format(kpis.peak_alert_hour) if kpis.peak_alert_hour is not none else "Sin alertas" }}</td>
+        </tr>
+        <tr>
+          <td class="key">Día de la semana con más alertas</td>
+          <td class="value">{{ kpis.busiest_weekday or "Sin alertas" }}</td>
+        </tr>
+        <tr>
+          <td class="key">Disponibilidad del radar (horas operativas)</td>
+          <td class="value">
+            {% if kpis.radar_uptime_pct is not none %}{{ "%.1f"|format(kpis.radar_uptime_pct) }}%{% else %}Sin datos{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td class="key">Disponibilidad del receptor AIS</td>
+          <td class="value">
+            {% if kpis.ais_uptime_pct is not none %}{{ "%.1f"|format(kpis.ais_uptime_pct) }}%{% else %}Sin datos{% endif %}
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    {% if alert_photo_b64 %}
+    <div class="section photo-section">
+      <div class="eyebrow">Evidencia fotográfica</div>
+      <h2>Embarcación detectada en alerta</h2>
+      <img src="data:image/jpeg;base64,{{ alert_photo_b64 }}" alt="Fotografía de alerta">
+      <div class="photo-caption">
+        Fotografía capturada automáticamente por el sistema M2 durante un evento de alerta
+        en {{ site.name }}, {{ kpis.month_name }} {{ kpis.year }}.
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <div class="footer">
+    Reporte generado automáticamente por el sistema de monitoreo Marine Monitor (M2) ·
+    Pronatura Noroeste A.C. · ProtectedSeas
+  </div>
+
+</body>
+</html>

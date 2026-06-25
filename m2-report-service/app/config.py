@@ -15,7 +15,6 @@ load_dotenv()
 _REQUIRED_VARS = [
     "M2_API_BASE_URL",
     "M2_API_TOKEN",
-    "M2_USER_ID",
     "SMTP_HOST",
     "SMTP_PORT",
     "SMTP_USER",
@@ -31,7 +30,6 @@ class Settings:
     # ProtectedSeas M2 API
     m2_api_base_url: str
     m2_api_token: str
-    m2_user_id: str
 
     # SMTP
     smtp_host: str
@@ -83,7 +81,6 @@ def _load_settings() -> Settings:
     return Settings(
         m2_api_base_url=os.environ["M2_API_BASE_URL"].rstrip("/"),
         m2_api_token=os.environ["M2_API_TOKEN"],
-        m2_user_id=os.environ["M2_USER_ID"],
         smtp_host=os.environ["SMTP_HOST"],
         smtp_port=smtp_port,
         smtp_user=os.environ["SMTP_USER"],

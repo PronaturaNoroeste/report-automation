@@ -1,13 +1,8 @@
 """ProtectedSeas M2 API client.
 
-The token in use only has access to the download endpoints (the
-/external/historical and /external/.../photos groups return 403), so the
-primary data source is the Monthly Radar Track ZIP:
+The data source is the Monthly Radar Track ZIP:
 
     GET /api/map/{radar_id}/{year}/{month:02d}/download-s3-zip
-
-Photo endpoints are kept as best-effort: they currently 403 but degrade
-gracefully, and will start working if ProtectedSeas widens the token scope.
 
 Retry policy: transport errors, 5xx and 429 are retried with exponential
 backoff; other 4xx (401/403/404) are permanent and raised immediately.
@@ -98,34 +93,3 @@ async def download_monthly_zip(radar_id: int, year: int, month: int) -> bytes:
         f"Monthly ZIP not found for radar {radar_id} {year}-{month:02d} "
         "(404 on both endpoint spellings — data may not be published yet)."
     ) from last_error
-
-
-async def get_track_photos(radar_id: int, server_track_id: str) -> list[dict]:
-    """Photo metadata for one track. Returns [] on any failure — best-effort."""
-    url = f"{settings.m2_api_base_url}/external/{settings.m2_user_id}/{radar_id}/{server_track_id}/photos"
-    try:
-        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-            response = await _get_with_retry(client, url)
-        payload = response.json()
-        if isinstance(payload, list):
-            return payload
-        if isinstance(payload, dict):
-            for key in ("photos", "data", "results"):
-                if isinstance(payload.get(key), list):
-                    return payload[key]
-        return []
-    except (M2ApiError, ValueError) as e:
-        log.info("Photo lookup unavailable for radar %s track %s: %s", radar_id, server_track_id, e)
-        return []
-
-
-async def download_photo(presigned_url: str) -> bytes | None:
-    """Download presigned photo bytes immediately — the URL expires in 1 hour."""
-    try:
-        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
-            response = await client.get(presigned_url)
-            response.raise_for_status()
-            return response.content
-    except httpx.HTTPError as e:
-        log.info("Photo download failed: %s", e)
-        return None

@@ -88,8 +88,7 @@ def run_single_site(site: RadarSite, year: int, month: int, triggered_by: str) -
     )
 
     run_tracker.update(site.id, "running", "Generando PDF…")
-    pdf_path = generator.generate_pdf(kpis, chart_png, data["alert_photo"],
-                                      data["alert_photo_caption"])
+    pdf_path = generator.generate_pdf(kpis, chart_png)
 
     crud.update_report_run_success(run.id, kpis, pdf_path)
     crud.save_yoy_baseline(site.id, year, month, kpis["total_tracks"], kpis["alert_tracks"])

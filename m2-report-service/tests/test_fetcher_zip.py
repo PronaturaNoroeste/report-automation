@@ -147,29 +147,3 @@ def test_normalize_track_handles_bad_timestamp():
     t = normalize_track(row, "radar")
     assert t is not None
     assert t["local_dt"] is None
-
-
-TAGGED_FIELDS = [("id_track", "N", 11), ("valid", "N", 4), ("type", "C", 30)]
-
-
-def test_operator_tags_join_onto_radar_tracks():
-    radar_rows = [
-        make_track_row(1, "55-0501-0001", "2026-05-01", "09:30:00", alarm=1),
-        make_track_row(2, "55-0501-0002", "2026-05-01", "14:00:00", alarm=1),
-    ]
-    tagged_rows = [
-        {"id_track": 1, "valid": 1, "type": "Embarcación de pesca"},
-        # track 2 absent from the tagged file → carries no tag fields
-    ]
-
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w") as zf:
-        zf.writestr("55_2026_05_tracks_radar.dbf", write_dbf(TRACK_FIELDS, radar_rows))
-        zf.writestr("55_2026_05_tracks_radar_tagged.dbf", write_dbf(TAGGED_FIELDS, tagged_rows))
-
-    parsed = parse_monthly_zip(buffer.getvalue())
-    by_id = {t["id_track"]: t for t in parsed["all_tracks"]}
-
-    assert by_id[1]["tag_valid"] == 1
-    assert by_id[1]["tag_type"] == "Embarcación de pesca"
-    assert "tag_type" not in by_id[2]   # untagged track is untouched

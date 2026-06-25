@@ -8,7 +8,6 @@ _tmpdir = tempfile.mkdtemp(prefix="m2_test_")
 os.environ.update({
     "M2_API_BASE_URL": "https://example.test/api/map",
     "M2_API_TOKEN": "test-token",
-    "M2_USER_ID": "test-user",
     "SMTP_HOST": "smtp.example.test",
     "SMTP_PORT": "587",
     "SMTP_USER": "test@example.test",

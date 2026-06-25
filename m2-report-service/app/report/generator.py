@@ -35,7 +35,8 @@ def _static_b64(filename: str) -> str | None:
     return None
 
 
-def generate_pdf(kpis: dict, chart_png: bytes, alert_photo: bytes | None) -> str:
+def generate_pdf(kpis: dict, chart_png: bytes, alert_photo: bytes | None,
+                 alert_photo_caption: str | None = None) -> str:
     from weasyprint import HTML
 
     site = kpis["site"]
@@ -46,6 +47,7 @@ def generate_pdf(kpis: dict, chart_png: bytes, alert_photo: bytes | None) -> str
         kpis=kpis,
         chart_b64=_b64(chart_png),
         alert_photo_b64=_b64(alert_photo),
+        alert_photo_caption=alert_photo_caption,
         logo_b64=_static_b64("pronatura_logo.png"),
         radar_photo_b64=_static_b64("radar_tower.jpg"),
     )

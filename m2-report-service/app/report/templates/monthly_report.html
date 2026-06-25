@@ -261,6 +261,7 @@
       <h2>Embarcación detectada en alerta</h2>
       <img src="data:image/jpeg;base64,{{ alert_photo_b64 }}" alt="Fotografía de alerta">
       <div class="photo-caption">
+        {% if alert_photo_caption %}<strong>{{ alert_photo_caption }}</strong><br>{% endif %}
         Fotografía capturada automáticamente por el sistema M2 durante un evento de alerta
         en {{ site.name }}, {{ kpis.month_name }} {{ kpis.year }}.
       </div>

@@ -51,6 +51,9 @@ def normalize_track(row: dict, source: str) -> dict | None:
         "has_photos": int(row.get("has_photos") or 0),
         "duration": row.get("duration"),
         "max_speed": row.get("max_speed"),
+        "confidence": row.get("confidence"),  # radar detection confidence; None for AIS
+        "ais_name": row.get("name"),          # AIS rows only
+        "ais_type": row.get("type_m2"),       # AIS rows only
     }
 
 
@@ -87,19 +90,33 @@ def parse_monthly_zip(zip_bytes: bytes) -> dict:
     """Extract tracks and uptime from a monthly ZIP package."""
     radar_rows: list[dict] = []
     ais_rows: list[dict] = []
+    tagged_rows: list[dict] = []
     uptime = None
 
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
         for name in zf.namelist():
             lower = name.lower()
-            if lower.endswith("tracks_radar.dbf"):
+            if lower.endswith("tracks_radar_tagged.dbf"):
+                tagged_rows = read_dbf(zf.read(name))
+            elif lower.endswith("tracks_radar.dbf"):
                 radar_rows = read_dbf(zf.read(name))
             elif lower.endswith("tracks_ais.dbf"):
                 ais_rows = read_dbf(zf.read(name))
             elif lower.endswith("radar_uptime.csv"):
                 uptime = parse_uptime_csv(zf.read(name).decode("utf-8-sig"))
 
+    # Operator-review tags keyed by id_track. Absent/empty file → empty map.
+    tag_map = {
+        row["id_track"]: {"valid": row.get("valid"), "type": row.get("type")}
+        for row in tagged_rows if row.get("id_track") is not None
+    }
+
     tracks = [t for row in radar_rows if (t := normalize_track(row, "radar"))]
+    for t in tracks:
+        tag = tag_map.get(t["id_track"])
+        if tag:
+            t["tag_valid"] = tag["valid"]
+            t["tag_type"] = tag["type"]
     tracks += [t for row in ais_rows if (t := normalize_track(row, "ais"))]
     alert_tracks = [t for t in tracks if t["alarm"]]
 
@@ -117,7 +134,9 @@ async def fetch_site_monthly_data(site: RadarSite, year: int, month: int) -> dic
     zip_bytes = await m2_client.download_monthly_zip(site.id, year, month)
     parsed = parse_monthly_zip(zip_bytes)
 
-    alert_photo = await _fetch_first_alert_photo(site.id, parsed["alert_tracks"])
+    alert_photo, alert_photo_caption = await _fetch_best_alert_photo(
+        site.id, parsed["alert_tracks"]
+    )
 
     log.info(
         "[%s] %d-%02d: %d tracks after filtering (raw radar=%d, ais=%d), "
@@ -134,29 +153,80 @@ async def fetch_site_monthly_data(site: RadarSite, year: int, month: int) -> dic
         "site": site,
         "all_tracks": parsed["all_tracks"],
         "alert_tracks": parsed["alert_tracks"],
-        "uptime": parsed["uptime"],       # dict | None
-        "alert_photo": alert_photo,       # bytes | None
+        "uptime": parsed["uptime"],                    # dict | None
+        "alert_photo": alert_photo,                    # bytes | None
+        "alert_photo_caption": alert_photo_caption,    # str | None
     }
 
 
-async def _fetch_first_alert_photo(radar_id: int, alert_tracks: list, max_tracks: int = 5) -> bytes | None:
-    """Best-effort photo for the report. The photo endpoints currently return
-    403 for this token; this degrades to None and starts working automatically
-    if ProtectedSeas widens the token scope.
+def _score_alert_track(t: dict) -> float:
+    """Rank a photo candidate by how confidently it shows a real, identifiable
+    vessel. Higher wins. Pure signal already on the track — never excludes."""
+    score = 0.0
+    if t.get("tag_valid") and t.get("tag_type"):
+        score += 100  # an operator reviewed it and recorded a vessel type
+    if t.get("source") == "ais":
+        score += 50   # broadcasts its own identity → definitely a real vessel
+    conf = t.get("confidence")
+    if isinstance(conf, (int, float)):
+        score += conf  # radar detection confidence, as a tiebreaker
+    return score
 
+
+def _caption_for(t: dict) -> str | None:
+    """Short caption identifying the vessel in the chosen photo, when known."""
+    tag_type = (t.get("tag_type") or "").strip() if t.get("tag_valid") else ""
+    if tag_type:
+        return tag_type
+    if t.get("source") == "ais":
+        name = (t.get("ais_name") or "").strip()
+        vtype = (t.get("ais_type") or "").strip()
+        if name and vtype:
+            return f"{name} — {vtype}"
+        return name or vtype or None
+    return None
+
+
+async def _fetch_best_alert_photo(radar_id: int, alert_tracks: list,
+                                  max_tracks: int = 5) -> tuple[bytes | None, str | None]:
+    """Pick the photo most likely to show a real vessel: rank photo-bearing
+    alert tracks by _score_alert_track and return the first that downloads,
+    paired with an optional caption.
+
+    The photos endpoint keys on id_track (the API's server_track_id), not id_m2.
     presigned_photo_url expires in 1 hour — bytes are downloaded immediately.
+
+    Emits a one-line summary of where the search ended so an empty result is
+    self-explaining in the logs (no alerts vs. none with photos vs. download
+    failures).
     """
-    candidates = [t for t in alert_tracks if t.get("has_photos")][:max_tracks]
+    photo_bearing = [t for t in alert_tracks if t.get("has_photos")]
+    candidates = sorted(photo_bearing, key=_score_alert_track, reverse=True)[:max_tracks]
+
+    lookups = photos_found = downloads = 0
     for track in candidates:
         track_id = track.get("id_track")
         if not track_id:
             continue
+        lookups += 1
         photos = await m2_client.get_track_photos(radar_id, str(track_id))
+        photos_found += len(photos)
         for photo in photos:
             url = photo.get("presigned_photo_url") or photo.get("url")
             if not url:
                 continue
+            downloads += 1
             photo_bytes = await m2_client.download_photo(url)
             if photo_bytes:
-                return photo_bytes
-    return None
+                caption = _caption_for(track)
+                log.info("[radar %s] alert photo selected from track %s "
+                         "(score=%.2f, caption=%r; %d/%d alert tracks carry photos)",
+                         radar_id, track_id, _score_alert_track(track), caption,
+                         len(photo_bearing), len(alert_tracks))
+                return photo_bytes, caption
+
+    log.info("[radar %s] no alert photo: %d alerts, %d with has_photos, "
+             "%d lookups, %d photos found, %d downloads attempted",
+             radar_id, len(alert_tracks), len(photo_bearing),
+             lookups, photos_found, downloads)
+    return None, None

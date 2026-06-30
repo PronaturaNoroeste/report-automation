@@ -66,14 +66,3 @@ def send_report(site: RadarSite, run: ReportRun, pdf_path: str,
                 log.warning("[%s] Failed to email %s: %s", site.name, recipient.email, e)
 
     log.info("[%s] Report emailed to %d recipient(s), %d failed", site.name, sent, failed)
-
-
-def test_smtp_connection() -> tuple[bool, str]:
-    """Used by the admin settings page to verify SMTP credentials."""
-    try:
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as server:
-            server.starttls()
-            server.login(settings.smtp_user, settings.smtp_password)
-        return True, "Conexión SMTP exitosa."
-    except Exception as e:
-        return False, f"Error de conexión SMTP: {e}"

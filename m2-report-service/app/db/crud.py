@@ -9,8 +9,9 @@ from datetime import datetime, timezone
 
 from sqlalchemy import select
 
+from app.config import settings
 from app.db import SessionLocal
-from app.db.models import RadarSite, Recipient, ReportRun, YoYBaseline
+from app.db.models import AppSetting, RadarSite, Recipient, ReportRun, YoYBaseline
 
 log = logging.getLogger(__name__)
 
@@ -206,15 +207,6 @@ def get_baseline(site_id: int, year: int, month: int) -> YoYBaseline | None:
         )
 
 
-def get_site_baselines(site_id: int) -> list[YoYBaseline]:
-    with SessionLocal() as s:
-        return list(
-            s.scalars(
-                select(YoYBaseline)
-                .where(YoYBaseline.site_id == site_id)
-                .order_by(YoYBaseline.year.desc(), YoYBaseline.month.desc())
-            ).all()
-        )
 
 
 def save_yoy_baseline(site_id: int, year: int, month: int,
@@ -236,3 +228,39 @@ def save_yoy_baseline(site_id: int, year: int, month: int,
             baseline.alert_tracks = alert_tracks
         s.commit()
         return baseline
+
+
+# ---------------------------------------------------------------- AppSetting (schedule)
+
+_SCHED_DAY = "report_run_day"
+_SCHED_HOUR = "report_run_hour"
+_SCHED_MINUTE = "report_run_minute"
+
+
+def get_schedule() -> tuple[int, int, int]:
+    """Global monthly send schedule as (day, hour, minute).
+
+    Falls back to the env-configured day and 06:00 when nothing is stored yet.
+    """
+    with SessionLocal() as s:
+        def val(key: str, default: int) -> int:
+            row = s.get(AppSetting, key)
+            return int(row.value) if row else default
+
+        return (
+            val(_SCHED_DAY, settings.report_run_day),
+            val(_SCHED_HOUR, 6),
+            val(_SCHED_MINUTE, 0),
+        )
+
+
+def set_schedule(day: int, hour: int, minute: int) -> None:
+    """Persist the global send schedule (upsert each key)."""
+    with SessionLocal() as s:
+        for key, value in ((_SCHED_DAY, day), (_SCHED_HOUR, hour), (_SCHED_MINUTE, minute)):
+            row = s.get(AppSetting, key)
+            if row is None:
+                s.add(AppSetting(key=key, value=str(value)))
+            else:
+                row.value = str(value)
+        s.commit()

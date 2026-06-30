@@ -5,84 +5,54 @@
 <div class="page-header">
   <div>
     <h1>Configuración</h1>
-    <div class="subtitle">Verificación SMTP y líneas base año-contra-año</div>
+    <div class="subtitle">Fecha y hora de envío global de los reportes</div>
   </div>
 </div>
 
 <div class="section-stack">
-
   <div class="card">
-    <h2>Correo saliente (SMTP)</h2>
-    <p style="font-size: 13px; color: var(--color-stone); margin-bottom: 16px;">
-      Los valores se configuran en el archivo <code>.env</code> del servidor.
-      Servidor: <strong>{{ smtp.smtp_host }}:{{ smtp.smtp_port }}</strong> ·
-      Remitente: <strong>{{ smtp.smtp_user }}</strong>
+    <h2>Programación de envío</h2>
+    <p style="font-size: 13px; color: var(--color-stone); margin-bottom: 20px;">
+      Los reportes de todos los sitios activos se generan y envían cada mes el día
+      seleccionado, a la hora indicada (zona horaria del servidor).
+      {% if next_run %}
+      Próxima ejecución: <strong>{{ next_run.strftime('%d/%m/%Y %H:%M') }}</strong>.
+      {% endif %}
     </p>
+
     <form method="post">
-      <input type="hidden" name="action" value="test_smtp">
-      <button type="submit" class="btn btn-secondary">Probar conexión SMTP</button>
-    </form>
-    {% if smtp_result %}
-    <div class="smtp-result {{ 'ok' if smtp_result.ok else 'fail' }}">{{ smtp_result.message }}</div>
-    {% endif %}
-  </div>
-
-  <div class="card">
-    <h2>Agregar / editar línea base (año anterior)</h2>
-    <p style="font-size: 13px; color: var(--color-stone); margin-bottom: 16px;">
-      Las líneas base se guardan automáticamente con cada reporte exitoso. Use este formulario solo para
-      cargar datos históricos previos al despliegue del sistema.
-    </p>
-    <form method="post" class="form-grid">
-      <input type="hidden" name="action" value="save_baseline">
-      <div class="field">
-        <label for="bl-site">Sitio</label>
-        <select name="site_id" id="bl-site" required>
-          {% for s in sites %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="field">
-        <label for="bl-period">Periodo (año-mes)</label>
-        <input type="month" name="period" id="bl-period" required>
-      </div>
-      <div class="field">
-        <label for="bl-total">Registros totales</label>
-        <input type="number" name="total_tracks" id="bl-total" min="0" required>
-      </div>
-      <div class="field">
-        <label for="bl-alerts">Alertas</label>
-        <input type="number" name="alert_tracks" id="bl-alerts" min="0" required>
-      </div>
-      <div>
-        <button type="submit" class="btn btn-primary">Guardar línea base</button>
-      </div>
-    </form>
-  </div>
-
-  {% for s in sites %}
-  {% if baselines[s.id] %}
-  <div class="card" style="padding: 0;">
-    <h2 style="padding: 24px 24px 0 24px;">Líneas base — {{ s.name }}</h2>
-    <div style="margin-top: 16px;">
-      <table class="data">
-        <thead>
-          <tr><th>Periodo</th><th>Registros totales</th><th>Alertas</th><th>Actualizado</th></tr>
-        </thead>
-        <tbody>
-          {% for b in baselines[s.id] %}
-          <tr>
-            <td>{{ month_es[b.month] }} {{ b.year }}</td>
-            <td>{{ "{:,}".format(b.total_tracks) }}</td>
-            <td>{{ "{:,}".format(b.alert_tracks) }}</td>
-            <td class="muted">{{ b.updated_at.strftime('%d/%m/%Y %H:%M') }} UTC</td>
-          </tr>
+      <div class="field" style="margin-bottom: 20px;">
+        <label>Día del mes</label>
+        <input type="hidden" name="day" id="sc-day" value="{{ day }}">
+        <div class="day-grid" id="day-grid">
+          {% for d in range(1, 29) %}
+          <button type="button" class="day-cell {{ 'active' if d == day }}" data-day="{{ d }}">{{ d }}</button>
           {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% endif %}
-  {% endfor %}
+        </div>
+      </div>
 
+      <div class="field" style="max-width: 160px; margin-bottom: 20px;">
+        <label for="sc-time">Hora de envío</label>
+        <input type="time" name="time" id="sc-time"
+               value="{{ '%02d:%02d'|format(hour, minute) }}" required>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </form>
+  </div>
 </div>
+
+<script>
+  (function () {
+    var grid = document.getElementById('day-grid');
+    var hidden = document.getElementById('sc-day');
+    grid.addEventListener('click', function (e) {
+      var cell = e.target.closest('.day-cell');
+      if (!cell) return;
+      grid.querySelectorAll('.day-cell.active').forEach(function (c) { c.classList.remove('active'); });
+      cell.classList.add('active');
+      hidden.value = cell.dataset.day;
+    });
+  })();
+</script>
 {% endblock %}

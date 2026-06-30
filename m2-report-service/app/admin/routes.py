@@ -5,6 +5,7 @@ background thread; the dashboard polls /admin/run/status while busy.
 """
 
 import logging
+import re
 import secrets
 import threading
 from functools import wraps
@@ -24,7 +25,6 @@ from flask import (
 
 from app.config import settings
 from app.db import crud
-from app.mailer import smtp_sender
 from app.pipeline.aggregator import MONTH_ES
 from app.scheduler import jobs
 
@@ -75,6 +75,15 @@ def _month_options() -> list[dict]:
         if month == 0:
             year, month = year - 1, 12
     return options
+
+
+# Pragmatic single-address check; also guarantees no CR/LF (header injection)
+# and no spaces. Not RFC-complete, but right for an operator-entered field.
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _is_valid_email(email: str) -> bool:
+    return bool(_EMAIL_RE.match(email)) and len(email) <= 254
 
 
 def _parse_period(raw: str) -> tuple[int, int]:
@@ -165,35 +174,24 @@ def history():
 @admin_bp.route("/settings", methods=["GET", "POST"])
 @requires_auth
 def settings_page():
-    smtp_result = None
     if request.method == "POST":
-        action = request.form.get("action")
-        if action == "test_smtp":
-            ok, message = smtp_sender.test_smtp_connection()
-            smtp_result = {"ok": ok, "message": message}
-        elif action == "save_baseline":
-            try:
-                site_id = int(request.form["site_id"])
-                year, month = _parse_period(request.form["period"])
-                total = int(request.form["total_tracks"])
-                alerts = int(request.form["alert_tracks"])
-                if total < 0 or alerts < 0:
-                    raise ValueError("Los valores no pueden ser negativos")
-                crud.save_yoy_baseline(site_id, year, month, total, alerts)
-                flash("Línea base guardada.", "success")
-            except (KeyError, ValueError) as e:
-                flash(f"Datos inválidos: {e}", "danger")
-            return redirect(url_for("admin.settings_page"))
+        try:
+            day = int(request.form["day"])
+            hour, minute = (int(p) for p in request.form["time"].split(":"))
+            if not (1 <= day <= 28 and 0 <= hour <= 23 and 0 <= minute <= 59):
+                raise ValueError("fuera de rango")
+            crud.set_schedule(day, hour, minute)
+            jobs.reschedule_reports(day, hour, minute)
+            flash("Programación de envío actualizada.", "success")
+        except (KeyError, ValueError):
+            flash("Datos inválidos: elija un día (1–28) y una hora.", "danger")
+        return redirect(url_for("admin.settings_page"))
 
-    sites = crud.get_all_sites()
-    baselines = {site.id: crud.get_site_baselines(site.id) for site in sites}
+    day, hour, minute = crud.get_schedule()
     return render_template(
         "settings.html",
-        sites=sites,
-        baselines=baselines,
-        month_es=MONTH_ES,
-        smtp=settings,
-        smtp_result=smtp_result,
+        day=day, hour=hour, minute=minute,
+        next_run=jobs.next_report_run(),
         active_page="settings",
     )
 
@@ -203,10 +201,10 @@ def settings_page():
 @admin_bp.route("/sites/<int:site_id>/recipients/add", methods=["POST"])
 @requires_auth
 def add_recipient(site_id: int):
-    name = request.form.get("name", "").strip()
+    name = request.form.get("name", "").strip()[:120]
     email = request.form.get("email", "").strip()
     error = None
-    if not name or not email or "@" not in email:
+    if not name or not _is_valid_email(email):
         error = "Nombre y correo válido son requeridos."
     elif crud.add_recipient(site_id, name, email) is None:
         error = "Ese correo ya está en la lista de este sitio."

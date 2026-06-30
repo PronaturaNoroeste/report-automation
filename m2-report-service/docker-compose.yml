@@ -2,11 +2,29 @@ services:
   m2-report:
     build: .
     restart: unless-stopped
+    # Published to host loopback only — NOT reachable from the VPS public IP.
+    # Public access is via the cloudflared tunnel below; this mapping is just
+    # for host-local admin/debugging (e.g. curl from the VPS itself).
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     env_file:
       - .env
     volumes:
       - ./reports:/app/reports
       - ./logs:/app/logs
       - ./data:/app/data       # SQLite DB lives here
+
+  # Cloudflare Tunnel: outbound-only connection to Cloudflare's edge, so the VPS
+  # opens no inbound port and the origin IP stays hidden. Routes the public
+  # hostname to the app over the internal Docker network (http://m2-report:5000).
+  # Create the tunnel in the Cloudflare Zero Trust dashboard and put its token in
+  # .env as TUNNEL_TOKEN; set the public hostname's service to http://m2-report:5000.
+  # Set the zone's SSL/TLS mode to Full (Strict).
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    depends_on:
+      - m2-report

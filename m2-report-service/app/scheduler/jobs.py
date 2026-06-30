@@ -17,7 +17,6 @@ from datetime import date
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from app.config import settings
 from app.db import crud
 from app.db.models import RadarSite
 from app.mailer import smtp_sender
@@ -131,14 +130,38 @@ def run_all_sites_job() -> None:
     run_sites_batch(sites, year, month, triggered_by="scheduler")
 
 
+_JOB_ID = "monthly_report_all_sites"
+_scheduler: BackgroundScheduler | None = None
+
+
 def start_scheduler() -> BackgroundScheduler:
+    global _scheduler
+    day, hour, minute = crud.get_schedule()
     scheduler = BackgroundScheduler()
     scheduler.add_job(
         func=run_all_sites_job,
-        trigger=CronTrigger(day=settings.report_run_day, hour=6, minute=0),
-        id="monthly_report_all_sites",
+        trigger=CronTrigger(day=day, hour=hour, minute=minute),
+        id=_JOB_ID,
         replace_existing=True,
     )
     scheduler.start()
-    log.info("Scheduler started — monthly run on day %d at 06:00", settings.report_run_day)
+    _scheduler = scheduler
+    log.info("Scheduler started — monthly run on day %d at %02d:%02d", day, hour, minute)
     return scheduler
+
+
+def reschedule_reports(day: int, hour: int, minute: int) -> None:
+    """Apply a new global send schedule to the running scheduler (hot reload)."""
+    if _scheduler is None:
+        log.warning("reschedule_reports called before the scheduler started; skipping")
+        return
+    _scheduler.reschedule_job(_JOB_ID, trigger=CronTrigger(day=day, hour=hour, minute=minute))
+    log.info("Reports rescheduled — monthly run on day %d at %02d:%02d", day, hour, minute)
+
+
+def next_report_run():
+    """Next scheduled run datetime (tz-aware) or None if not scheduled."""
+    if _scheduler is None:
+        return None
+    job = _scheduler.get_job(_JOB_ID)
+    return job.next_run_time if job else None

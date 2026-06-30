@@ -22,10 +22,16 @@ def main() -> None:
 
     jobs.start_scheduler()
 
-    # Single-process service: Flask serves the admin panel; APScheduler runs
-    # in a background thread. debug/reloader stay off so the scheduler is not
-    # started twice.
-    app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
+    # Single-process service: waitress serves the admin panel while APScheduler
+    # runs in a background thread. Must stay one process (in-process scheduler +
+    # SQLite), so a single multi-threaded server — not multi-worker gunicorn.
+    #
+    # Binds all interfaces *inside the container*; public exposure is controlled
+    # outside the app: docker-compose publishes the port to host loopback only
+    # (127.0.0.1) and a Cloudflare Tunnel sidecar provides TLS to the internet.
+    from waitress import serve
+
+    serve(app, host="0.0.0.0", port=5000, threads=8)
 
 
 if __name__ == "__main__":

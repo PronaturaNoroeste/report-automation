@@ -99,3 +99,17 @@ class YoYBaseline(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow, onupdate=utcnow)
 
     site: Mapped[RadarSite] = relationship(back_populates="baselines")
+
+
+class AppSetting(Base):
+    """Key-value store for runtime-editable settings (e.g. the global send schedule).
+
+    Key-value avoids schema changes for new settings, since tables are created with
+    create_all (no migrations). Values are strings; callers parse as needed.
+    """
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(String(255), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow, onupdate=utcnow)

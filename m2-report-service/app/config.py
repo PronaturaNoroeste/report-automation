@@ -48,6 +48,7 @@ class Settings:
     log_level: str
     report_run_day: int
     database_url: str
+    app_base_url: str | None  # public origin (e.g. https://reports.example.org) for CSRF origin checks
 
 
 def _load_settings() -> Settings:
@@ -93,6 +94,7 @@ def _load_settings() -> Settings:
         log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
         report_run_day=report_run_day,
         database_url=database_url,
+        app_base_url=(os.getenv("APP_BASE_URL") or "").rstrip("/") or None,
     )
 
 

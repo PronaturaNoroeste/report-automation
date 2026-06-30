@@ -182,7 +182,7 @@ body {
   margin-left: auto;
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-end;   /* bottom-align so buttons line up with the labeled period select */
   flex-wrap: wrap;
 }
 
@@ -259,8 +259,15 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
 }
+/* Grid spacing is handled by `gap`; cancel the stacked-card top margin so the
+   first card isn't offset above the rest of its row. */
+.card-grid .card + .card { margin-top: 0; }
 
 /* Site card (dashboard) */
+.site-card {
+  display: flex;
+  flex-direction: column;
+}
 .site-card .site-name {
   font-size: 16px;
   font-weight: 600;
@@ -277,7 +284,7 @@ body {
 }
 .site-card .meta .value { color: var(--color-ink); font-weight: 500; }
 .site-card .card-footer {
-  margin-top: 16px;
+  margin-top: auto;       /* pin to the bottom so footers align across cards */
   padding-top: 16px;
   border-top: 1px solid var(--color-fog);
   display: flex;
@@ -385,6 +392,33 @@ table.data .muted { color: var(--color-stone); font-size: 12px; }
 }
 .field input::placeholder { color: rgba(107, 103, 96, 0.6); }
 .field .helper { font-size: 12px; color: var(--color-stone); margin-top: 4px; }
+
+/* Day-of-month picker (mini calendar grid, 1–28) */
+.day-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+.day-cell {
+  height: 46px;
+  border: 1px solid var(--color-fog);
+  border-radius: var(--radius-input);
+  background: var(--surface-canvas);
+  color: var(--color-ink);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.1s, background 0.1s;
+}
+.day-cell:hover { border-color: var(--color-action); }
+.day-cell:focus-visible { outline: 2px solid var(--color-action); outline-offset: 1px; }
+.day-cell.active {
+  background: var(--color-action);
+  border-color: var(--color-action);
+  color: #ffffff;
+  font-weight: 600;
+}
 
 .inline-form {
   display: flex;
